@@ -31,6 +31,55 @@
 		Endproc
 	EndDefine
 
+通过在类中添加一个与测试名称相同、后缀名为“_data ”的数组，可以将每个测试转化为**理论**。
+
+	Define Class CustomerTestClass As FxuTestCase Of FxuTestCase.prg
+
+		Dimension testTheory_Data[3,2]
+		testTheory_Data[1,1] = 1
+		testTheory_Data[1,2] = 2
+		testTheory_Data[2,1] = 3
+		testTheory_Data[2,2] = 6
+		testTheory_Data[3,1] = 5
+		testTheory_Data[3,2] = 10
+
+		Procedure testTheory (tnValue, tnResult)
+			this.AssertEquals (m.tnResult, 2*m.tnValue)
+		EndProc
+
+	EndDefine
+
+数组中的每一行都包含一个理论，对应一组测试参数。每一列的值作为参数依次传递给测试。每行测试执行一次。
+
+理论中的每个值都可以用一个值列表代替。FoxPro 不支持类定义中的嵌套数组或集合启动器。因此，理论中的每一个列表值都被定义为一个数组，其名称与测试方法相同，后缀为“_data”，然后是理论数组的行和列。两个值之间用下划线分隔。FoxUnit 在执行每个理论时，会同时执行参数的所有 ** 变体**。
+
+	Define Class CustomerTestClass As FxuTestCase Of FxuTestCase.prg
+
+		Dimension testTheorySeries_Data[2,3]
+		Dimension testTheorySeries_Data_1_1[5]
+		testTheorySeries_Data_1_1[1] = "   Hello"
+		testTheorySeries_Data_1_1[2] = "Hello   "
+		testTheorySeries_Data_1_1[3] = "HELLO"
+		testTheorySeries_Data_1_1[4] = ",Hello:"
+		testTheorySeries_Data_1_1[5] = "Hello World"
+		Dimension testTheorySeries_Data_1_2[3]
+		testTheorySeries_Data_1_2[1] = 1
+		testTheorySeries_Data_1_2[2] = 2
+		testTheorySeries_Data_1_2[3] = 3
+		testTheorySeries_Data[1,3] = "HELLO"
+
+		testTheorySeries_Data[2,1] = "Second row"
+		testTheorySeries_Data[2,2] = 4
+		testTheorySeries_Data[2,3] = "SECOND"
+
+		Procedure testTheorySeries (tcValue, tnPass, tcResult)
+			This.MessageOut (Transform(m.tnPass)+", "+m.tcValue)
+			This.AssertEquals (m.tcResult, Upper(GetWordNum(m.tcValue,1,",: ")))
+		EndProc
+	
+	EndDefine
+
+上述测试定义了两个理论。第一个理论的第一个参数（tcValue）有五个值，第二个参数（tnPass）有三个值。这意味着第一个理论总共测试了 15 种组合。第二个理论只有一组值。这意味着 “testTheorySeries ”测试总共执行了 16 次。
 
 **Asserts**
 这些 Assert 方法可用于根据预期值测试实际值，并在不满足 Assert 语句时显示输出文本。

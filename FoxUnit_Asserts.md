@@ -31,6 +31,55 @@ Notice that each **Test Class** can contain multiple **Tests**, which are simply
 		Endproc
 	EndDefine
 
+Each Test can be turned into a **Theory** by adding an array to the class that has the same name as the test and the suffix "_data".
+
+	Define Class CustomerTestClass As FxuTestCase Of FxuTestCase.prg
+
+		Dimension testTheory_Data[3,2]
+		testTheory_Data[1,1] = 1
+		testTheory_Data[1,2] = 2
+		testTheory_Data[2,1] = 3
+		testTheory_Data[2,2] = 6
+		testTheory_Data[3,1] = 5
+		testTheory_Data[3,2] = 10
+
+		Procedure testTheory (tnValue, tnResult)
+			this.AssertEquals (m.tnResult, 2*m.tnValue)
+		EndProc
+
+	EndDefine
+
+Every row in the array contains on theory and corresponds with one set of parameters for the test. The values from each column are passed as parameters to the test in order. The test is executed once per row. 
+
+Every value in a theory can be replaced with a list of values. FoxPro does not support nested arrays or collection initilizers in a class definition. Therefore every valiu of a theory that is a list is defined as an array with the same name as the test method followed by the suffix "_data" followed by the row and column of the theory array. Both values are separated by an underscore. FoxUnit executes each theory with all **Permutations** of parameters.
+
+	Define Class CustomerTestClass As FxuTestCase Of FxuTestCase.prg
+
+		Dimension testTheorySeries_Data[2,3]
+		Dimension testTheorySeries_Data_1_1[5]
+		testTheorySeries_Data_1_1[1] = "   Hello"
+		testTheorySeries_Data_1_1[2] = "Hello   "
+		testTheorySeries_Data_1_1[3] = "HELLO"
+		testTheorySeries_Data_1_1[4] = ",Hello:"
+		testTheorySeries_Data_1_1[5] = "Hello World"
+		Dimension testTheorySeries_Data_1_2[3]
+		testTheorySeries_Data_1_2[1] = 1
+		testTheorySeries_Data_1_2[2] = 2
+		testTheorySeries_Data_1_2[3] = 3
+		testTheorySeries_Data[1,3] = "HELLO"
+
+		testTheorySeries_Data[2,1] = "Second row"
+		testTheorySeries_Data[2,2] = 4
+		testTheorySeries_Data[2,3] = "SECOND"
+
+		Procedure testTheorySeries (tcValue, tnPass, tcResult)
+			This.MessageOut (Transform(m.tnPass)+", "+m.tcValue)
+			This.AssertEquals (m.tcResult, Upper(GetWordNum(m.tcValue,1,",: ")))
+		EndProc
+	
+	EndDefine
+
+The test above defines two theories. The first theory has five values for the first parameter (tcValue) and three values for the second parameter (tnPass). This means the first theory is tested for a total of 15 combinations. The second theory only has one set of values. That means the "testTheorySeries"-test is executed 16 times in total.
 
 **Asserts**
 These Assert methods can be used to test actual values against expected values, with output text to be displayed when the Assert statement is not met.
