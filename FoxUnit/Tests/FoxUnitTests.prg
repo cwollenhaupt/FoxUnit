@@ -330,6 +330,26 @@ ENDTEXT
   	this.AssertEquals (m.tnResult, 2*m.tnValue)
   EndProc
 
+	Dimension testTheorySeries_Data[2,3]
+	Dimension testTheorySeries_Data_1_1[5]
+	testTheorySeries_Data_1_1[1] = "   Hello"
+	testTheorySeries_Data_1_1[2] = "Hello   "
+	testTheorySeries_Data_1_1[3] = "HELLO"
+	testTheorySeries_Data_1_1[4] = ",Hello:"
+	testTheorySeries_Data_1_1[5] = "Hello World"
+	Dimension testTheorySeries_Data_1_2[3]
+	testTheorySeries_Data_1_2[1] = 1
+	testTheorySeries_Data_1_2[2] = 2
+	testTheorySeries_Data_1_2[3] = 3
+	testTheorySeries_Data[1,3] = "HELLO"
+	testTheorySeries_Data[2,1] = "Second row"
+	testTheorySeries_Data[2,2] = 4
+	testTheorySeries_Data[2,3] = "SECOND"
+	Procedure testTheorySeries (tcValue, tnPass, tcResult)
+		This.MessageOut (Transform(m.tnPass)+", "+m.tcValue)
+		This.AssertEquals (m.tcResult, Upper(GetWordNum(m.tcValue,1,",: ")))
+	EndProc
+	
 **********************************************************************
 ENDDEFINE
 **********************************************************************

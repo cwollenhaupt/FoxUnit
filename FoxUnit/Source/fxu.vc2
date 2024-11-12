@@ -7272,6 +7272,9 @@ DEFINE CLASS fxufrmtestbroker AS fxufrmuser OF "fxu.vcx"
  	*< CLASSDATA: Baseclass="form" Timestamp="" Scale="Pixels" Uniqueid="" />
 
 	*<DefinedPropArrayMethod>
+		*m: getparam
+		*m: getvalue
+		*m: runsingletheory
 		*m: runtest
 		*m: runtheory
 	*</DefinedPropArrayMethod>
@@ -7288,6 +7291,92 @@ DEFINE CLASS fxufrmtestbroker AS fxufrmuser OF "fxu.vcx"
 
 		</VFPData>
 	
+	PROTECTED PROCEDURE getparam
+		*========================================================================================
+		* Returns the parameter for a theory starting at a specifc parameter.
+		*========================================================================================
+		LParameter toSource, tcArray, tnTheory, tcSoFar, tnStart
+			
+			*--------------------------------------------------------------------------------------
+			* As long as we only have straight values, we keep adding to a string. When we 
+			* encounter a series, we switch to the object
+			*--------------------------------------------------------------------------------------
+			Local lcParam, lnParam, lcSeries, loResult as Collection, lnSeries, lcSoFar
+			Local loData, lcData
+			lcParam = m.tcSoFar
+			For lnParam = m.tnStart to Alen(toSource.&tcArray, 2)
+				If not Empty (m.lcParam)
+					lcParam = m.lcParam + ", "
+				EndIf
+				lcSeries = m.tcArray+"_"+Transform(m.tnTheory)+"_"+Transform(m.lnParam)
+				If PemStatus(m.toSource, m.lcSeries, 5)
+					loResult = CreateObject("Collection")
+					For lnSeries = 1 to Alen(m.toSource.&lcSeries)
+						lcSoFar = m.lcParam + "toSource."+m.lcSeries+"["+Transform(m.lnSeries)+"]"
+						If Alen(toSource.&tcArray, 2) > m.lnParam
+							loData = This.GetParam ( ;
+								m.toSource, m.tcArray, m.tnTheory, m.lcSoFar, m.lnParam+1)
+							If Vartype(m.loData.uParam) == "C"
+								loResult.Add(m.loData.uParam)
+							Else
+								For each lcData in loData.uParam
+									loResult.Add(m.lcData)
+								EndFor 
+							EndIf 
+						Else
+							loResult.Add(m.lcSoFar)
+						EndIf 
+					EndFor
+					Exit
+				Else 
+					lcParam = m.lcParam + ;
+						"toSource." + m.tcArray + ;
+						"[" + Transform(m.tnTheory) + "," + Transform(m.lnParam) + "]"
+				EndIf
+			EndFor
+			
+			*--------------------------------------------------------------------------------------
+			* Create the data object that we return
+			*--------------------------------------------------------------------------------------
+			Local loRetVal
+			loRetVal = CreateObject("Empty")
+			AddProperty(m.loRetVal, "uParam")
+			AddProperty(m.loRetVal, "nTotal")
+			
+			*--------------------------------------------------------------------------------------
+			* If we never created an loResult object, than the whole theory is just one tuple.
+			*--------------------------------------------------------------------------------------
+			If Vartype(m.loResult) == "O"
+				loRetVal.uParam = m.loResult		
+				loRetVal.nTotal = m.loResult.Count
+			Else
+				loRetVal.uParam = m.lcParam
+				loRetVal.nTotal = 1
+			EndIf 
+			
+		Return m.loRetVal
+	ENDPROC
+
+	PROCEDURE getvalue
+		*========================================================================================
+		* Returns the specified value. This is used to return each value of a list of parameters
+		* as a string.
+		*========================================================================================
+		LParameter tnIndex, ;
+			tu01, tu02, tu03, tu04, tu05, tu06, tu07, tu08, tu09, tu10, ;
+			tu11, tu12, tu13, tu14, tu15, tu16, tu17, tu18, tu19, tu20, ;
+			tu21, tu22 
+		
+			Local lcIndex, luValue, lcValue
+			lcIndex = Padl (Alltrim (Str (m.tnIndex)), 2, "0")
+			luValue = Evaluate ("tu"+m.lcIndex)
+			lcValue = Transform (m.luValue)
+			
+		Return m.lcValue
+		
+		
+	ENDPROC
+
 	PROCEDURE Init
 		PARAMETERS toFxuInstance
 		
@@ -7296,6 +7385,39 @@ DEFINE CLASS fxufrmtestbroker AS fxufrmuser OF "fxu.vcx"
 		ENDIF
 		
 		this.DataSessionId = 1
+	ENDPROC
+
+	PROCEDURE runsingletheory
+		*========================================================================================
+		* Runs a single theory
+		*========================================================================================
+		LParameter toSource, tcClass, tcProgFile, toResult, tcResult, tnTotal, tcParam, ;
+			tnTheory, tnValues
+		
+			Local loTestCase, lcResult, lnValue
+			lcResult = m.tcResult
+			loTestCase = NewObject ( ;
+				m.tcClass, m.tcProgFile, null, m.toResult, this.ioFxuInstance ;
+			)
+			loTestCase.inTestCountsAs = 1/m.tnTotal
+			toResult.icFailureErrorDetails = ""
+			loTestCase.Run (&tcParam)
+			If not Empty (toResult.icFailureErrorDetails)
+				If not Empty (m.lcResult)
+					lcResult = m.lcResult + Chr(13)+Chr(10) + Replicate("=",60) + Chr(13)+Chr(10)
+				EndIf
+				lcResult = m.lcResult	+ "theory #" + Transform(m.tnTheory) + ": "
+				For lnValue = 1 to m.tnValues
+					If m.lnValue > 1
+						lcResult = m.lcResult + ", "
+					EndIf
+					lcResult = m.lcResult + This.GetValue (m.lnValue, &tcParam)
+				EndFor 
+				lcResult = m.lcResult + Chr(13)+Chr(10) + toResult.icFailureErrorDetails 
+			EndIf
+		
+		Return m.lcResult
+		
 	ENDPROC
 
 	PROCEDURE runtest
@@ -7360,44 +7482,53 @@ DEFINE CLASS fxufrmtestbroker AS fxufrmuser OF "fxu.vcx"
 		LParameter toSource, tcArray, tcClass, tcProgFile, toResult
 		
 			*--------------------------------------------------------------------------------------
-			* Parameters are stored in a member array
+			* Parameters are stored in a collection which can be nested up to a total of two 
+			* levels.
 			*--------------------------------------------------------------------------------------
-			Local lnParam, lcParam
-			lcParam = ""
-			For lnParam = 1 to Alen(toSource.&tcArray, 2)
-				If not Empty (m.lcParam)
-					lcParam = m.lcParam + ", "
-				EndIf
-				lcParam = m.lcParam + ;
-					"toSource." + m.tcArray + "[m.lnDataPoint," + Transform(m.lnParam) + "]"
+			Local loParam as Collection, lnTheory, lnTotal, loData
+			loParam = CreateObject("Collection")
+			lnTotal = 0
+			For lnTheory = 1 to Alen(toSource.&tcArray, 1)
+				loData = This.GetParam (m.toSource, m.tcArray, m.lnTheory, "", 1)
+				loParam.Add (loData.uParam)
+				lnTotal = m.lnTotal + loData.nTotal
 			EndFor 
 		
 			*--------------------------------------------------------------------------------------
 			* Check all data points for this theory
 			*--------------------------------------------------------------------------------------
-			Local loTestCase, lnDataPoint, lcResult, lnValue, lnCount
+			Local lnTheory, lcResult, lnPermutation, luParam, lcParam, lnValues
 			lcResult = ""
-			lnCount = Alen(toSource.&tcArray, 1)
-			For lnDataPoint = 1 to m.lnCount
-				loTestCase = NewObject ( ;
-					m.tcClass, m.tcProgFile, null, m.toResult, this.ioFxuInstance ;
-				)
-				loTestCase.inTestCountsAs = 1/m.lnCount
-				toResult.icFailureErrorDetails = ""
-				loTestCase.Run (&lcParam)
-				If not Empty (toResult.icFailureErrorDetails)
-					If not Empty (m.lcResult)
-						lcResult = m.lcResult + Chr(13)+Chr(10) + Replicate("=",60) + Chr(13)+Chr(10)
-					EndIf
-					lcResult = m.lcResult	+"theory #" + Transform(m.lnDataPoint) + ": "
-					For lnValue = 1 to Alen(toSource.&tcArray, 2)
-						If m.lnValue > 1
-							lcResult = m.lcResult + ", "
-						EndIf
-						lcResult = m.lcResult + Transform (m.toSource.&tcArray[m.lnDataPoint, m.lnValue])
-					EndFor 
-					lcResult = m.lcResult + Chr(13)+Chr(10) + toResult.icFailureErrorDetails 
-				EndIf
+			lnValues = Alen(toSource.&tcArray, 2)
+			For each luParam in loParam FoxObject
+				Do case
+				Case Vartype (m.luParam) == "C"
+					lcResult = This.RunSingleTheory ( ;
+						 m.toSource ;
+						,m.tcClass ;
+						,m.tcProgFile ;
+						,m.toResult ;
+						,m.lcResult ;
+						,m.lnTotal ;
+						,m.luParam ;
+						,m.lnTheory ;
+						,m.lnValues ;
+					)
+				Case Vartype (m.luParam) == "O"
+					For each lcParam in luParam FoxObject
+						lcResult = This.RunSingleTheory ( ;
+							 m.toSource ;
+							,m.tcClass ;
+							,m.tcProgFile ;
+							,m.toResult ;
+							,m.lcResult ;
+							,m.lnTotal ;
+							,m.lcParam ;
+							,m.lnTheory ;
+							,m.lnValues ;
+						)
+					EndFor
+				EndCase
 			EndFor
 		
 			*--------------------------------------------------------------------------------------
