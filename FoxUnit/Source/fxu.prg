@@ -59,7 +59,7 @@ SET MULTILOCKS ON
 SET NOTIFY OFF
 SET SAFETY OFF
 SET TALK OFF
-SET DATE TO YMD
+SET DATE TO SHORT			&& -- Alan Bourke Oct 2021 - respect Windows date setting.
 
 *-- FDBOZZO. 06/11/2011. This facilitates automation ("createFxuResultsAddAllTestsAndRun")
 IF NOT EMPTY(tcMethodToAutoRun)
@@ -801,12 +801,14 @@ PROCEDURE createFxuResultsAddAllTestsAndRun
 				ENDIF
 			ENDIF
 
-			goFoxUnitForm.ioResultData = .NULL.
+			* Joel Leach: Releasing this early causes error when form is released below
+			*goFoxUnitForm.ioResultData = .NULL.
 			goFoxUnitForm.ioTestBroker = .NULL.
 			RELEASE loFrmLoadClass
 			*--
 			*goFoxUnitForm.SHOW()
 			*goFoxUnitForm.RunAllTests()
+
 			RELEASE goFoxUnitForm
 		ENDIF
 
